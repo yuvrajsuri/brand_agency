@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Overlay Engine - Create Marketing Images</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"],
+        .form-group select,
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 40px 20px;
+            border: 3px dashed #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+            text-align: center;
+        }
+
+        .file-upload-label:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .file-upload-label.has-file {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+
+        .text-blocks {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .text-block {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .text-block:last-child {
+            margin-bottom: 0;
+        }
+
+        .text-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .text-block-title {
+            font-weight: 600;
+            color: #667eea;
+            text-transform: capitalize;
+        }
+
+        .color-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .color-input-wrapper input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .color-input-wrapper input[type="text"] {
+            flex: 1;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .preview-section {
+            text-align: center;
+        }
+
+        .preview-placeholder {
+            width: 100%;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .preview-placeholder svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .preview-image {
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .preview-image.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-message {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .success-message.show {
+            display: flex;
+        }
+
+        .error-message {
+            background: #f44336;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .download-btn {
+            background: #4CAF50;
+            display: none;
+            margin-top: 10px;
+        }
+
+        .download-btn.show {
+            display: block;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #1976D2;
+        }
+
+        .template-preview {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .template-option {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .template-option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .template-option.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Text Overlay Engine</h1>
+            <p>Create professional marketing images with perfect Punjabi/Hindi text rendering</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Panel: Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+
+                <div class="info-box">
+                    💡 Upload a background image and add your text. The engine will render it with pixel-perfect Indic fonts!
+                </div>
+
+                <!-- Background Upload -->
+                <div class="form-group">
+                    <label>Background Image</label>
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="backgroundFile" accept="image/*">
+                        <label for="backgroundFile" class="file-upload-label" id="fileLabel">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span>Click to upload background image</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Language Selection -->
+                <div class="form-group">
+                    <label>Language</label>
+                    <select id="language">
+                        <option value="punjabi">Punjabi (ਪੰਜਾਬੀ)</option>
+                        <option value="hindi">Hindi (हिन्दी)</option>
+                        <option value="english">English</option>
+                    </select>
+                </div>
+
+                <!-- Template Type -->
+                <div class="form-group">
+                    <label>Template Type</label>
+                    <select id="templateType">
+                        <option value="festival">Festival - Centered vertical</option>
+                        <option value="offer" selected>Offer - Top-heavy layout</option>
+                        <option value="product">Product - Bottom-third</option>
+                        <option value="event">Event - Asymmetric</option>
+                    </select>
+                    <div class="template-preview">
+                        <div class="template-option" onclick="selectTemplate('festival')">
+                            <div>🎉 Festival</div>
+                            <div style="font-size: 0.7rem; margin-top: 5px;">Centered</div>
+                        </div>
+                        <div class="template-option selected" onclick="selectTemplate('offer')">
+                            <div>💰 Offer</div>
+                            <div style="font-size: 0.7rem; margin-top: 5px;">Top-heavy</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('product')">
+                            <div>📦 Product</div>
+                            <div style="font-size: 0.7rem; margin-top: 5px;">Bottom</div>
+                        </div>
+                        <div class="template-option" onclick="selectTemplate('event')">
+                            <div>📅 Event</div>
+                            <div style="font-size: 0.7rem; margin-top: 5px;">Asymmetric</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brand Color -->
+                <div class="form-group">
+                    <label>Brand Color (for CTA button)</label>
+                    <div class="color-input-wrapper">
+                        <input type="color" id="brandColor" value="#FF6B35">
+                        <input type="text" id="brandColorText" value="#FF6B35" readonly>
+                    </div>
+                </div>
+
+                <!-- Text Blocks -->
+                <div class="form-group">
+                    <label>Text Content</label>
+                    <div class="text-blocks">
+                        <!-- Headline -->
+                        <div class="text-block">
+                            <div class="text-block-header">
+                                <span class="text-block-title">📢 Headline</span>
+                                <select id="headlineWeight">
+                                    <option value="normal">Normal</option>
+                                    <option value="bold">Bold</option>
+                                    <option value="black" selected>Black</option>
+                                </select>
+                            </div>
+                            <input type="text" id="headlineText" placeholder="Enter headline text">
+                            <div class="color-input-wrapper" style="margin-top: 10px;">
+                                <input type="color" id="headlineColor" value="#FFFFFF">
+                                <input type="text" value="#FFFFFF" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Subtext -->
+                        <div class="text-block">
+                            <div class="text-block-header">
+                                <span class="text-block-title">💬 Subtext</span>
+                                <select id="subtextWeight">
+                                    <option value="normal">Normal</option>
+                                    <option value="bold" selected>Bold</option>
+                                    <option value="black">Black</option>
+                                </select>
+                            </div>
+                            <input type="text" id="subtextText" placeholder="Enter subtext">
+                            <div class="color-input-wrapper" style="margin-top: 10px;">
+                                <input type="color" id="subtextColor" value="#FFD700">
+                                <input type="text" value="#FFD700" readonly>
+                            </div>
+                        </div>
+
+                        <!-- CTA -->
+                        <div class="text-block">
+                            <div class="text-block-header">
+                                <span class="text-block-title">🎯 Call to Action</span>
+                                <select id="ctaWeight">
+                                    <option value="normal">Normal</option>
+                                    <option value="bold" selected>Bold</option>
+                                    <option value="black">Black</option>
+                                </select>
+                            </div>
+                            <input type="text" id="ctaText" placeholder="Enter CTA text">
+                            <div class="color-input-wrapper" style="margin-top: 10px;">
+                                <input type="color" id="ctaColor" value="#FFFFFF">
+                                <input type="text" value="#FFFFFF" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button class="btn btn-primary" onclick="generateOverlay()" id="generateBtn">
+                    🚀 Generate Image
+                </button>
+            </div>
+
+            <!-- Right Panel: Preview -->
+            <div class="card">
+                <h2>👁️ Preview</h2>
+
+                <div class="success-message" id="successMessage">
+                    ✅ Image generated successfully!
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <div class="loading" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Generating your image...</p>
+                    <p style="font-size: 0.9rem; color: #999; margin-top: 5px;">This usually takes 2-3 seconds</p>
+                </div>
+
+                <div class="preview-placeholder" id="previewPlaceholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p>Your generated image will appear here</p>
+                </div>
+
+                <img id="previewImage" class="preview-image">
+
+                <button class="btn btn-primary download-btn" id="downloadBtn" onclick="downloadImage()">
+                    ⬇️ Download Image
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedFile = null;
+        let generatedImageUrl = null;
+
+        // File upload handling
+        document.getElementById('backgroundFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                uploadedFile = file;
+                const label = document.getElementById('fileLabel');
+                label.classList.add('has-file');
+                label.innerHTML = `
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4"></path>
+                        <circle cx="12" cy="12" r="10"></circle>
+                    </svg>
+                    <span>${file.name}</span>
+                `;
+            }
+        });
+
+        // Color picker sync
+        document.getElementById('brandColor').addEventListener('input', function(e) {
+            document.getElementById('brandColorText').value = e.target.value;
+        });
+
+        // Template selection
+        function selectTemplate(template) {
+            document.getElementById('templateType').value = template;
+            document.querySelectorAll('.template-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.target.closest('.template-option').classList.add('selected');
+        }
+
+        // Load sample text based on language
+        document.getElementById('language').addEventListener('change', function(e) {
+            const lang = e.target.value;
+            const samples = {
+                punjabi: {
+                    headline: 'ਵਿਸ਼ੇਸ਼ ਪੇਸ਼ਕਸ਼',
+                    subtext: '50% ਤੱਕ ਛੋਟ',
+                    cta: 'ਹੁਣੇ ਆਰਡਰ ਕਰੋ'
+                },
+                hindi: {
+                    headline: 'विशेष ऑफर',
+                    subtext: '50% तक छूट',
+                    cta: 'अभी ऑर्डर करें'
+                },
+                english: {
+                    headline: 'Special Offer',
+                    subtext: 'Up to 50% Off',
+                    cta: 'Order Now'
+                }
+            };
+
+            document.getElementById('headlineText').placeholder = samples[lang].headline;
+            document.getElementById('subtextText').placeholder = samples[lang].subtext;
+            document.getElementById('ctaText').placeholder = samples[lang].cta;
+        });
+
+        // Generate overlay
+        async function generateOverlay() {
+            // Validation
+            if (!uploadedFile) {
+                alert('⚠️ Please upload a background image first!');
+                return;
+            }
+
+            const headlineText = document.getElementById('headlineText').value.trim();
+            const subtextText = document.getElementById('subtextText').value.trim();
+            const ctaText = document.getElementById('ctaText').value.trim();
+
+            if (!headlineText || !subtextText || !ctaText) {
+                alert('⚠️ Please fill in all text fields!');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('generateBtn').textContent = 'Generating...';
+            document.getElementById('successMessage').classList.remove('show');
+            document.getElementById('errorMessage').classList.remove('show');
+            document.getElementById('previewPlaceholder').style.display = 'flex';
+            document.getElementById('previewImage').classList.remove('show');
+            document.getElementById('downloadBtn').classList.remove('show');
+
+            try {
+                // Step 1: Upload background image to get URL
+                const formData = new FormData();
+                formData.append('file', uploadedFile);
+
+                const uploadResponse = await fetch('http://localhost:8000/api/upload-background', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to upload background image');
+                }
+
+                const uploadData = await uploadResponse.json();
+                const backgroundUrl = uploadData.url;
+
+                // Step 2: Generate overlay
+                const requestData = {
+                    background_url: backgroundUrl,
+                    texts: [
+                        {
+                            content: headlineText,
+                            type: 'headline',
+                            color: document.getElementById('headlineColor').value,
+                            weight: document.getElementById('headlineWeight').value
+                        },
+                        {
+                            content: subtextText,
+                            type: 'subtext',
+                            color: document.getElementById('subtextColor').value,
+                            weight: document.getElementById('subtextWeight').value
+                        },
+                        {
+                            content: ctaText,
+                            type: 'cta',
+                            color: document.getElementById('ctaColor').value,
+                            weight: document.getElementById('ctaWeight').value
+                        }
+                    ],
+                    language: document.getElementById('language').value,
+                    template_type: document.getElementById('templateType').value,
+                    brand_color: document.getElementById('brandColor').value,
+                    output_width: 1080,
+                    output_height: 1080
+                };
+
+                const response = await fetch('http://localhost:8000/api/generate-overlay', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Generation failed');
+                }
+
+                const result = await response.json();
+                
+                // Show success
+                generatedImageUrl = result.image_url;
+                document.getElementById('previewImage').src = generatedImageUrl;
+                document.getElementById('previewImage').classList.add('show');
+                document.getElementById('previewPlaceholder').style.display = 'none';
+                document.getElementById('successMessage').classList.add('show');
+                document.getElementById('downloadBtn').classList.add('show');
+
+                console.log('Generation time:', result.generation_time.toFixed(2) + 's');
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').textContent = '❌ ' + error.message;
+                document.getElementById('errorMessage').classList.add('show');
+            } finally {
+                document.getElementById('loadingIndicator').classList.remove('show');
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('generateBtn').textContent = '🚀 Generate Image';
+            }
+        }
+
+        // Download image
+        function downloadImage() {
+            if (generatedImageUrl) {
+                const a = document.createElement('a');
+                a.href = generatedImageUrl;
+                a.download = 'generated-overlay-' + Date.now() + '.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    </script>
+</body>
+</html>
