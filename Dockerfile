@@ -8,9 +8,7 @@ RUN apt-get update && apt-get install -y \
     wget \
     curl \
     gnupg \
-    fonts-noto-sans \
-    fonts-noto-sans-devanagari \
-    fonts-noto-sans-gurmukhi \
+    fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
