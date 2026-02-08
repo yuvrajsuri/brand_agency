@@ -25,10 +25,14 @@ class R2Storage:
         self.bucket_name = os.getenv("R2_BUCKET_NAME", "brand-agency-creatives")
         self.public_domain = os.getenv("R2_PUBLIC_DOMAIN")  # Custom domain or R2.dev URL
         
-        # Validate credentials
-        if not all([self.account_id, self.access_key_id, self.secret_access_key]):
-            logger.warning("R2 credentials not configured - using local storage fallback")
+        # Validate credentials - if not all present, use local storage
+        if not all([self.account_id, self.access_key_id, self.secret_access_key]) or \
+           self.account_id == "your_account_id_here":
+            logger.warning("R2 credentials not configured - using local storage")
             self.client = None
+            self.local_storage_dir = Path.home() / "Downloads" / "brandbot-posters"
+            self.local_storage_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Local storage directory: {self.local_storage_dir}")
             return
         
         # Initialize R2 client (S3-compatible)
@@ -45,20 +49,39 @@ class R2Storage:
     
     async def upload_image(self, file_path: Path, folder: str = "overlays") -> str:
         """
-        Upload image to R2 bucket
+        Upload image to R2 bucket or save locally
         
         Args:
             file_path: Local path to image file
             folder: Folder structure in R2 (e.g., "overlays", "campaigns/diwali")
         
         Returns:
-            Public URL of uploaded image
+            Public URL of uploaded image or local file path
         """
         
         if not self.client:
-            # Fallback: return local file path for testing
-            logger.warning("R2 not configured - returning local path")
-            return f"file://{file_path.absolute()}"
+            # Local storage: copy to static/generated folder for HTTP serving
+            import shutil
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_ext = file_path.suffix
+            filename = f"{timestamp}_{os.urandom(4).hex()}{file_ext}"
+            
+            # Save to static/generated folder so it can be served via HTTP
+            static_dir = Path(__file__).parent.parent / "static" / "generated"
+            static_dir.mkdir(parents=True, exist_ok=True)
+            
+            destination = static_dir / filename
+            shutil.copy2(file_path, destination)
+            
+            # Also save to Downloads for user's reference
+            downloads_dir = self.local_storage_dir / filename
+            shutil.copy2(file_path, downloads_dir)
+            
+            logger.info(f"Image saved locally: {destination}")
+            logger.info(f"Also saved to Downloads: {downloads_dir}")
+            
+            # Return HTTP URL that browser can access
+            return f"/static/generated/{filename}"
         
         try:
             # Generate unique filename
