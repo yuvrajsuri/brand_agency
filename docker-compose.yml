@@ -4,6 +4,7 @@ services:
   api:
     build: .
     container_name: creative-api
+    image: creative-api:0.0.1
     restart: unless-stopped
     ports:
       - "8000:8000"
