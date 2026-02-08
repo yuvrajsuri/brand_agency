@@ -12,7 +12,7 @@ from typing import Optional, Literal
 import uvicorn
 import logging
 import sys
-import asyncio
+import time
 import os
 from pathlib import Path
 
@@ -41,7 +41,43 @@ STATIC_DIR = Path(__file__).parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
 # Mount static files
+# Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on startup"""
+    asyncio.create_task(cleanup_cron())
+
+async def cleanup_cron():
+    """Background task to clean up old local files every hour"""
+    while True:
+        try:
+            cleanup_old_local_files()
+        except Exception as e:
+            logger.error(f"Cleanup task failed: {str(e)}")
+        await asyncio.sleep(3600)  # Run every hour
+
+def cleanup_old_local_files():
+    """Delete local overlay files older than 24 hours"""
+    overlay_dir = STATIC_DIR / "overlays"
+    if not overlay_dir.exists():
+        return
+        
+    cutoff = time.time() - (24 * 3600)  # 24 hours ago
+    count = 0
+    
+    for file_path in overlay_dir.glob("*"):
+        if file_path.is_file():
+            try:
+                if file_path.stat().st_mtime < cutoff:
+                    file_path.unlink()
+                    count += 1
+            except Exception as e:
+                logger.error(f"Failed to delete {file_path}: {str(e)}")
+    
+    if count > 0:
+        logger.info(f"Cleaned up {count} old local overlay files")
 
 
 # Request/Response Models
