@@ -12,15 +12,24 @@ from typing import Optional, Literal
 import uvicorn
 import logging
 import sys
-import time
+import asyncio
 import os
 from pathlib import Path
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start background tasks
+    asyncio.create_task(cleanup_cron())
+    yield
+    # Shutdown logic if needed
 
 # Initialize FastAPI app
 app = FastAPI(
     title="Text Overlay Engine",
     description="AI-powered text overlay for marketing images with Indic script support",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware for n8n integration
@@ -41,13 +50,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 STATIC_DIR.mkdir(exist_ok=True)
 
 # Mount static files
-# Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on startup"""
-    asyncio.create_task(cleanup_cron())
 
 async def cleanup_cron():
     """Background task to clean up old local files every hour"""
