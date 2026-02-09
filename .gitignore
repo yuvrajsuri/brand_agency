@@ -55,3 +55,4 @@ temp/
 output/
 outputs/
 test-outputs/
+.env

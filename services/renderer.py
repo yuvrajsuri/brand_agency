@@ -5,13 +5,13 @@ Uses Playwright to render text overlays with proper Punjabi/Hindi font support
 
 import asyncio
 import os
+import sys
 import tempfile
 import httpx
 from pathlib import Path
 from typing import List, Dict, Tuple
 from playwright.async_api import async_playwright
 import logging
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -39,24 +39,6 @@ class OverlayRenderer:
             }
         }
     
-    # async def download_background(self, url: str) -> Path:
-    #     """Download background image from Runware URL"""
-    #     try:
-    #         async with httpx.AsyncClient(timeout=30.0) as client:
-    #             response = await client.get(url)
-    #             response.raise_for_status()
-                
-    #             # Save to temp file
-    #             file_path = self.temp_dir / f"bg_{os.urandom(8).hex()}.jpg"
-    #             file_path.write_bytes(response.content)
-                
-    #             logger.info(f"Background downloaded: {file_path}")
-    #             return file_path
-                
-    #     except Exception as e:
-    #         logger.error(f"Failed to download background: {str(e)}")
-    #         raise
-    
     async def download_background(self, url: str) -> Path:
         """Download background image from URL or use local file path"""
         try:
@@ -82,7 +64,7 @@ class OverlayRenderer:
                 return path_obj
             
             # Otherwise, download from HTTP URL
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 response = await client.get(url)
                 response.raise_for_status()
                 
@@ -96,8 +78,7 @@ class OverlayRenderer:
         except Exception as e:
             logger.error(f"Failed to download background: {str(e)}")
             raise
-
-
+    
     def calculate_positions(
         self,
         template_type: str,
@@ -131,11 +112,11 @@ class OverlayRenderer:
                 })
         
         elif template_type == "offer":
-            # Top-heavy layout for discount/offers
+            # Top-heavy layout for discount/offers with better spacing
             layouts = {
-                "headline": {"x": 0.5, "y": 0.25, "align": "center", "max_width": 0.9},
-                "subtext": {"x": 0.5, "y": 0.50, "align": "center", "max_width": 0.8},
-                "cta": {"x": 0.5, "y": 0.75, "align": "center", "max_width": 0.7}
+                "headline": {"x": 0.5, "y": 0.18, "align": "center", "max_width": 0.85},
+                "subtext": {"x": 0.5, "y": 0.50, "align": "center", "max_width": 0.80},
+                "cta": {"x": 0.5, "y": 0.80, "align": "center", "max_width": 0.65}
             }
             
             for block in text_blocks:
@@ -200,6 +181,41 @@ class OverlayRenderer:
         
         return sizes
     
+    def get_flex_config(self, template_type: str) -> dict:
+        """
+        Return flexbox CSS configuration for template type
+        This replaces the brittle absolute positioning approach
+        """
+        
+        configs = {
+            "festival": {
+                "justify-content": "center",
+                "align-items": "center",
+                "gap": "30px",
+                "padding": "60px 40px"
+            },
+            "offer": {
+                "justify-content": "center",
+                "align-items": "center",
+                "gap": "40px",  # More space for offers
+                "padding": "60px 40px"
+            },
+            "product": {
+                "justify-content": "flex-end",
+                "align-items": "center",
+                "gap": "20px",
+                "padding": "40px 40px 80px 40px"  # Bottom-heavy
+            },
+            "event": {
+                "justify-content": "space-between",
+                "align-items": "flex-start",
+                "gap": "20px",
+                "padding": "60px 40px"
+            }
+        }
+        
+        return configs.get(template_type, configs["festival"])
+    
     async def render_overlay(
         self,
         background_path: Path,
@@ -208,7 +224,8 @@ class OverlayRenderer:
         language: str,
         brand_color: str,
         output_width: int,
-        output_height: int
+        output_height: int,
+        template_type: str = "festival"  # Add template_type parameter
     ) -> Path:
         """
         Render text overlay using Playwright for accurate Indic script rendering
@@ -220,16 +237,17 @@ class OverlayRenderer:
         # Get font family for language
         font_family = self.font_config[language]["family"]
         
-        # Generate HTML template
+        # Generate HTML template with flexbox layout
         html_content = self._generate_html_template(
             background_path=background_path,
             text_blocks=text_blocks,
-            positions=positions,
+            positions=positions,  # Not used anymore, kept for compatibility
             font_sizes=font_sizes,
             font_family=font_family,
             brand_color=brand_color,
             output_width=output_width,
-            output_height=output_height
+            output_height=output_height,
+            template_type=template_type  # Pass template_type for flex config
         )
         
         # Save HTML to temp file
@@ -250,61 +268,51 @@ class OverlayRenderer:
         self,
         background_path: Path,
         text_blocks: List,
-        positions: List[Dict],
+        positions: List[Dict],  # Kept for backward compatibility, but not used
         font_sizes: List[int],
         font_family: str,
         brand_color: str,
         output_width: int,
-        output_height: int
+        output_height: int,
+        template_type: str = "festival"
     ) -> str:
-        """Generate HTML template with text overlays"""
+        """Generate HTML template with FLEXBOX layout (best practice)"""
         
         # Convert background to base64 for embedding
         import base64
         bg_data = background_path.read_bytes()
         bg_base64 = base64.b64encode(bg_data).decode('utf-8')
         
-        # Build text elements HTML
+        # Get flexbox configuration for this template
+        flex_config = self.get_flex_config(template_type)
+        
+        # Build text elements WITHOUT absolute positioning
         text_elements = []
         
-        for i, (block, pos, size) in enumerate(zip(text_blocks, positions, font_sizes)):
-            # Calculate pixel positions
-            left_pct = pos['x'] * 100
-            top_pct = pos['y'] * 100
-            max_width_pct = pos['max_width'] * 100
+        for i, (block, size) in enumerate(zip(text_blocks, font_sizes)):
+            css_class = f"text-{block.type}"  # text-headline, text-subtext, text-cta
             
-            # Text alignment
-            text_align = pos['align']
-            
-            # Transform for centering
-            transform = ""
-            if text_align == "center":
-                transform = "transform: translate(-50%, -50%);"
-            elif text_align == "right":
-                transform = "transform: translate(-100%, -50%);"
-            else:
-                transform = "transform: translateY(-50%);"
-            
-            # Text shadow for readability
-            text_shadow = "text-shadow: 2px 2px 8px rgba(0,0,0,0.7), -2px -2px 8px rgba(0,0,0,0.5);"
-            
-            # Build style
+            # Base style for all text elements
             style = f"""
-                position: absolute;
-                left: {left_pct}%;
-                top: {top_pct}%;
-                {transform}
                 font-size: {size}px;
                 font-weight: {block.weight};
                 color: {block.color};
-                text-align: {text_align};
-                max-width: {max_width_pct}%;
-                {text_shadow}
-                line-height: 1.2;
+                line-height: 1.6;
                 font-family: {font_family};
+                text-align: center;
+                max-width: 90%;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: optimizeLegibility;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             """
             
-            # Add brand color accent for CTA buttons
+            # Add text shadow for headline and subtext (not CTA)
+            if block.type != "cta":
+                style += "text-shadow: 2px 2px 12px rgba(0,0,0,0.8);"
+            
+            # Special styling for CTA buttons
             if block.type == "cta":
                 style += f"""
                     background: {brand_color};
@@ -312,12 +320,12 @@ class OverlayRenderer:
                     border-radius: 50px;
                     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
                     display: inline-block;
-                    white-space: nowrap;
+                    text-shadow: none;
                 """
             
-            text_elements.append(f'<div class="text-block" style="{style}">{block.content}</div>')
+            text_elements.append(f'<div class="{css_class}" style="{style}">{block.content}</div>')
         
-        # Complete HTML
+        # Complete HTML with Flexbox layout
         html = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -349,9 +357,23 @@ class OverlayRenderer:
             width: 100%;
             height: 100%;
             object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
         }}
         
-        .text-block {{
+        .content-overlay {{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: {flex_config['justify-content']};
+            align-items: {flex_config['align-items']};
+            gap: {flex_config['gap']};
+            padding: {flex_config['padding']};
             z-index: 10;
         }}
     </style>
@@ -359,7 +381,9 @@ class OverlayRenderer:
 <body>
     <div class="container">
         <img src="data:image/jpeg;base64,{bg_base64}" class="background" alt="Background">
-        {''.join(text_elements)}
+        <div class="content-overlay">
+            {''.join(text_elements)}
+        </div>
     </div>
 </body>
 </html>

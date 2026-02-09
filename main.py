@@ -165,8 +165,12 @@ async def generate_poster(request: PosterRequest):
                 copy_text=copy_data['headline']
             )
             
-            # For now, use Unsplash as fallback (Gemini Imagen integration coming)
-            background_url = await gemini.get_background_image(background_prompt, request.template_type)
+            # For now, use Unsplash with contextual keywords
+            background_url = await gemini.get_background_image(
+                background_prompt, 
+                request.template_type,
+                request.business_type  # Pass business_type for relevant images
+            )
             
             # Step 3: Download background
             background_path = await renderer.download_background(background_url)
@@ -185,7 +189,7 @@ async def generate_poster(request: PosterRequest):
                 image_height=1080
             )
             
-            # Step 5: Render overlay
+            # Step 5: Render overlay with flexbox layout
             output_path = await renderer.render_overlay(
                 background_path=background_path,
                 text_blocks=text_blocks,
@@ -193,7 +197,8 @@ async def generate_poster(request: PosterRequest):
                 language=request.language,
                 brand_color="#FF6B35",
                 output_width=1080,
-                output_height=1080
+                output_height=1080,
+                template_type=request.template_type  # Pass template_type for flex config
             )
             
             # Step 6: Upload to R2 (or local)
@@ -296,7 +301,7 @@ async def generate_overlay(request: OverlayRequest):
             image_height=request.output_height
         )
         
-        # Render overlay
+        # Render overlay with flexbox layout
         output_path = await renderer.render_overlay(
             background_path=background_path,
             text_blocks=request.texts,
@@ -304,7 +309,8 @@ async def generate_overlay(request: OverlayRequest):
             language=request.language,
             brand_color=request.brand_color,
             output_width=request.output_width,
-            output_height=request.output_height
+            output_height=request.output_height,
+            template_type=request.template_type  # Pass template_type for flex config
         )
         
         # Upload to R2

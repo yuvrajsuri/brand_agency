@@ -69,6 +69,16 @@ class GeminiService:
                 # Extract generated text
                 generated_text = result['candidates'][0]['content']['parts'][0]['text']
                 
+                # Clean up markdown formatting (Gemini sometimes wraps JSON in ```json ```)
+                generated_text = generated_text.strip()
+                if generated_text.startswith('```json'):
+                    generated_text = generated_text[7:]  # Remove ```json
+                if generated_text.startswith('```'):
+                    generated_text = generated_text[3:]  # Remove ```
+                if generated_text.endswith('```'):
+                    generated_text = generated_text[:-3]  # Remove ```
+                generated_text = generated_text.strip()
+                
                 # Parse JSON response
                 copy_data = json.loads(generated_text)
                 
@@ -182,25 +192,55 @@ Return ONLY the image prompt (plain text, no JSON):"""
             logger.error(f"Image prompt generation failed: {str(e)}")
             return self._get_fallback_image_prompt(template_type)
     
-    async def get_background_image(self, prompt: str, template_type: str) -> str:
+    async def get_background_image(self, prompt: str, template_type: str, business_type: str = "") -> str:
         """
-        Get background image URL
-        For now, uses Lorem Picsum (reliable free API)
-        TODO: Integrate Gemini Imagen API when available
-        """
+        Get background image URL with contextually relevant images
+        Uses Unsplash Source API with fallback to Picsum
         
-        # Use Lorem Picsum for reliable background images
-        # Format: https://picsum.photos/{width}/{height}?random={seed}
+        Note: Gemini Imagen 3 integration requires Vertex AI setup,
+        which needs a Google Cloud project. For MVP, using Unsplash/Picsum.
+        """
         
         import random
         seed = random.randint(1, 1000)
         
-        # Add blur for better text readability
-        background_url = f"https://picsum.photos/1080/1080?random={seed}&blur=2"
+        # Map template types to relevant Unsplash keywords
+        keywords_map = {
+            "festival": "celebration,lights,decorations,festive",
+            "offer": "sale,shopping,retail,discount",
+            "product": "minimal,product,studio,clean",
+            "event": "event,conference,gathering,professional"
+        }
         
-        logger.info(f"Using Picsum background: {background_url}")
+        # For food businesses, use food-related keywords
+        business_lower = business_type.lower()
+        if any(word in business_lower for word in ["food", "sweet", "restaurant", "cafe", "bakery", "kitchen"]):
+            keywords = "food,sweets,dessert,cuisine,delicious"
+        else:
+            keywords = keywords_map.get(template_type, "abstract,gradient,minimal")
         
-        return background_url
+        # Try Unsplash first, with fallback to Picsum if it fails
+        try:
+            background_url = f"https://source.unsplash.com/1080x1080/?{keywords}&sig={seed}"
+            
+            # Test if Unsplash is accessible (quick HEAD request)
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                try:
+                    response = await client.head(background_url, follow_redirects=True)
+                    if response.status_code == 200:
+                        logger.info(f"Using Unsplash background (keywords={keywords}, seed={seed})")
+                        return background_url
+                    else:
+                        raise Exception(f"Unsplash returned {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"Unsplash check failed: {e}, using Picsum fallback")
+                    raise  # Trigger fallback
+                    
+        except Exception:
+            # Fallback to Picsum with blur for better text readability
+            background_url = f"https://picsum.photos/1080/1080?random={seed}&blur=2"
+            logger.info(f"Using Picsum fallback (seed={seed}): {background_url}")
+            return background_url
     
     def _get_fallback_copy(self, business_name: str, language: str, template_type: str) -> Dict[str, str]:
         """Fallback templates when Gemini API is unavailable"""
