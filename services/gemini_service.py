@@ -24,7 +24,7 @@ class GeminiService:
             self.api_key = None
         
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
-        self.model = "gemini-2.0-flash"  # Use Gemini 2.0 Flash
+        self.model = "gemini-3-flash-preview"  # Use Gemini 3 Flash Preview
     
     async def generate_marketing_copy(
         self,
