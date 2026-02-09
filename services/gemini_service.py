@@ -7,7 +7,9 @@ import os
 import logging
 import json
 import httpx
+import httpx
 from typing import Dict
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -194,13 +196,64 @@ Return ONLY the image prompt (plain text, no JSON):"""
     
     async def get_background_image(self, prompt: str, template_type: str, business_type: str = "") -> str:
         """
-        Get background image URL with contextually relevant images
-        Uses Unsplash Source API with fallback to Picsum
-        
-        Note: Gemini Imagen 3 integration requires Vertex AI setup,
-        which needs a Google Cloud project. For MVP, using Unsplash/Picsum.
+        Get background image using Gemini Imagen 3
         """
         
+        # Try Gemini Imagen 3 first
+        if self.api_key:
+            try:
+                logger.info(f"Generating image with Gemini Imagen 3: {prompt[:50]}...")
+                
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    response = await client.post(
+                        f"{self.base_url}/models/imagen-4.0-generate-001:predict?key={self.api_key}",
+                        headers={"Content-Type": "application/json"},
+                        json={
+                            "instances": [
+                                {"prompt": prompt}
+                            ],
+                            "parameters": {
+                                "sampleCount": 1,
+                                "aspectRatio": "1:1"
+                            }
+                        }
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        # Extract Base64 image
+                        b64_image = result['predictions'][0]['bytesBase64Encoded']
+                        
+                        # Decode and save to temp file
+                        import base64
+                        import tempfile
+                        
+                        image_data = base64.b64decode(b64_image)
+                        
+                        temp_dir = tempfile.gettempdir()
+                        file_path = os.path.join(temp_dir, f"imagen_{os.urandom(8).hex()}.png")
+                        
+                        with open(file_path, "wb") as f:
+                            f.write(image_data)
+                            
+                        logger.info(f"Gemini Imagen image saved: {file_path}")
+                        
+                        # Return as file URI for renderer
+                        # fix path for windows if needed
+                        return str(Path(file_path).absolute())
+                    else:
+                        logger.warning(f"Gemini Imagen API failed: {response.status_code} - {response.text}")
+                        # Fall through to fallback
+                        
+            except Exception as e:
+                logger.error(f"Gemini Imagen generation failed: {str(e)}")
+                # Fall through to fallback
+        
+        # Fallback to Unsplash/Picsum logic if Imagen fails
+        return await self._get_fallback_background(template_type, business_type)
+
+    async def _get_fallback_background(self, template_type: str, business_type: str) -> str:
+        """Legacy fallback using Unsplash/Picsum"""
         import random
         seed = random.randint(1, 1000)
         

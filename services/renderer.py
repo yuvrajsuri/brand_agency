@@ -26,16 +26,16 @@ class OverlayRenderer:
         # Font configurations for different languages
         self.font_config = {
             "punjabi": {
-                "family": "Noto Sans Gurmukhi, sans-serif",
+                "family": "'Noto Sans Gurmukhi', sans-serif",
                 "fallback": "Arial Unicode MS"
             },
             "hindi": {
-                "family": "Noto Sans Devanagari, sans-serif",
+                "family": "'Noto Sans Devanagari', sans-serif",
                 "fallback": "Arial Unicode MS"
             },
             "english": {
-                "family": "Montserrat, sans-serif",
-                "fallback": "Arial"
+                "family": "'Noto Sans', sans-serif",
+                "fallback": "DejaVu Sans, Arial, sans-serif"
             }
         }
     
@@ -403,7 +403,10 @@ class OverlayRenderer:
         
         async with async_playwright() as p:
             # Launch browser in headless mode
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-setuid-sandbox"]
+            )
             
             # Create page with exact dimensions
             page = await browser.new_page(

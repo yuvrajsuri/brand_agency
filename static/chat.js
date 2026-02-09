@@ -50,16 +50,58 @@ window.addEventListener('DOMContentLoaded', () => {
 function startDemoFlow() {
     addBotMessage(`Hi ${conversationState.userData.name}! 👋\n\nWelcome to the quick demo!`);
 
+    // Simulate conversational flow
     setTimeout(() => {
-        addBotMessage(`I'll create a Holi festival poster for "${conversationState.userData.businessName}" in Punjabi.`);
-        conversationState.businessName = conversationState.userData.businessName;
-        conversationState.businessType = conversationState.userData.businessType;
-        conversationState.language = conversationState.userData.language;
-        conversationState.template = conversationState.userData.template;
+        addBotMessage("What would you like to create today?");
 
         setTimeout(() => {
-            generatePoster();
-        }, 1500);
+            // Simulate user clicking Festival Poster
+            addUserMessage("🎉 Festival Poster");
+
+            setTimeout(() => {
+                addBotMessage("Great choice! 🎨\n\nWhat's your business name?");
+                conversationState.businessName = conversationState.userData.businessName;
+
+                setTimeout(() => {
+                    // Simulate user typing business name
+                    addUserMessage(conversationState.userData.businessName);
+
+                    setTimeout(() => {
+                        addBotMessage(`Nice! ${conversationState.userData.businessName} sounds great. 🎯\n\nWhat type of business is it?`);
+                        conversationState.businessType = conversationState.userData.businessType;
+
+                        setTimeout(() => {
+                            // Simulate user choosing Restaurant
+                            addUserMessage("🍽️ Restaurant");
+
+                            setTimeout(() => {
+                                addBotMessage("Perfect! Which language should I use for the poster?");
+                                conversationState.language = conversationState.userData.language;
+
+                                setTimeout(() => {
+                                    // Simulate user choosing Punjabi
+                                    addUserMessage("ਪੰਜਾਬੀ Punjabi");
+
+                                    setTimeout(() => {
+                                        addBotMessage("Excellent! Now choose your template style:");
+                                        conversationState.template = conversationState.userData.template;
+
+                                        setTimeout(() => {
+                                            // Simulate user choosing Festival template
+                                            addUserMessage("🎉 Festival");
+
+                                            setTimeout(() => {
+                                                generatePoster();
+                                            }, 1000);
+                                        }, 1000);
+                                    }, 1000);
+                                }, 1500);
+                            }, 1000);
+                        }, 1500);
+                    }, 1000);
+                }, 1500);
+            }, 1000);
+        }, 1000);
     }, 1000);
 }
 
@@ -166,55 +208,77 @@ function addTemplateCards() {
 
 // Handle Quick Reply
 function handleQuickReply(value) {
-    // Remove quick reply buttons
-    const quickReplies = document.querySelectorAll('.quick-replies');
-    quickReplies.forEach(qr => qr.remove());
+    try {
+        console.log("Handling Quick Reply:", value); // Debug logging
 
-    if (value.includes('_poster')) {
-        const posterType = value.replace('_poster', '');
-        addUserMessage(`I want to create a ${posterType} poster`);
-        conversationState.step = 'business_name';
+        // Remove quick reply buttons
+        const quickReplies = document.querySelectorAll('.quick-replies');
+        quickReplies.forEach(qr => qr.remove());
 
-        setTimeout(() => {
-            addBotMessage("Great choice! 🎨\n\nWhat's your business name?");
-        }, 500);
-    } else if (value === 'retail' || value === 'restaurant' || value === 'services' || value === 'other') {
-        const labels = {
-            retail: '🏪 Retail',
-            restaurant: '🍽️ Restaurant',
-            services: '💼 Services',
-            other: '🏭 Other'
-        };
-        addUserMessage(labels[value]);
-        conversationState.businessType = value;
-        conversationState.step = 'language';
+        if (value.includes('_poster')) {
+            const posterType = value.replace('_poster', '');
+            // Capitalize first letter for nicer display
+            const displayType = posterType.charAt(0).toUpperCase() + posterType.slice(1);
+            addUserMessage(`I want to create a ${displayType} poster`);
+            conversationState.step = 'business_name';
 
-        setTimeout(() => {
-            addBotMessage("Perfect! Which language should I use for the poster?");
             setTimeout(() => {
-                addQuickReplies([
-                    { text: 'ਪੰਜਾਬੀ Punjabi', value: 'punjabi' },
-                    { text: 'हिंदी Hindi', value: 'hindi' },
-                    { text: '🌐 English', value: 'english' }
-                ]);
+                addBotMessage("Great choice! 🎨\n\nWhat's your business name?");
             }, 500);
-        }, 500);
-    } else if (value === 'punjabi' || value === 'hindi' || value === 'english') {
-        const labels = {
-            punjabi: 'ਪੰਜਾਬੀ Punjabi',
-            hindi: 'हिंदी Hindi',
-            english: '🌐 English'
-        };
-        addUserMessage(labels[value]);
-        conversationState.language = value;
-        conversationState.step = 'template';
+        } else if (['retail', 'restaurant', 'services', 'other'].includes(value)) {
+            const labels = {
+                retail: '🏪 Retail',
+                restaurant: '🍽️ Restaurant',
+                services: '💼 Services',
+                other: '🏭 Other'
+            };
+            addUserMessage(labels[value] || value);
+            conversationState.businessType = value;
+            conversationState.step = 'language';
 
-        setTimeout(() => {
-            addBotMessage("Excellent! Now choose your template style:");
             setTimeout(() => {
-                addTemplateCards();
+                addBotMessage("Perfect! Which language should I use for the poster?");
+                setTimeout(() => {
+                    addQuickReplies([
+                        { text: 'ਪੰਜਾਬੀ Punjabi', value: 'punjabi' },
+                        { text: 'हिंदी Hindi', value: 'hindi' },
+                        { text: '🌐 English', value: 'english' }
+                    ]);
+                }, 500);
             }, 500);
-        }, 500);
+        } else if (['punjabi', 'hindi', 'english'].includes(value)) {
+            const labels = {
+                punjabi: 'ਪੰਜਾਬੀ Punjabi',
+                hindi: 'हिंदी Hindi',
+                english: '🌐 English'
+            };
+            addUserMessage(labels[value] || value);
+            conversationState.language = value;
+            conversationState.step = 'template';
+
+            setTimeout(() => {
+                addBotMessage("Excellent! Now choose your template style:");
+                setTimeout(() => {
+                    addTemplateCards();
+                }, 500);
+            }, 500);
+        } else if (value.startsWith('var_')) {
+            // Handle variation selection (if triggered via quick reply mechanism)
+            const count = parseInt(value.split('_')[1]);
+            addUserMessage(`${count} variations`);
+
+            setTimeout(() => {
+                addBotMessage(`Great! Generating ${count} unique variations for you...`);
+                generatePoster(count);
+            }, 500);
+        } else {
+            console.warn("Unknown quick reply value:", value);
+            addBotMessage("I didn't quite catch that option. Could you try again?");
+            // Optionally re-show options based on state
+        }
+    } catch (error) {
+        console.error("Error in handleQuickReply:", error);
+        addBotMessage("Sorry, I encountered an error processing your selection. Please try refreshing the page.");
     }
 }
 
@@ -456,24 +520,6 @@ function requestVariations() {
     }, 500);
 }
 
-// Handle variation count selection
-function handleQuickReply(value) {
-    const quickReplies = document.querySelectorAll('.quick-replies');
-    quickReplies.forEach(qr => qr.remove());
-
-    if (value.startsWith('var_')) {
-        const count = parseInt(value.split('_')[1]);
-        addUserMessage(`${count} variations`);
-
-        setTimeout(() => {
-            addBotMessage(`Great! Generating ${count} unique variations for you...`);
-            generatePoster(count);
-        }, 500);
-    } else {
-        // ... rest of quick reply handling ...
-    }
-}
-
 // Download Poster
 function downloadPoster(url) {
     const a = document.createElement('a');
@@ -597,6 +643,7 @@ function saveHistory() {
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
         sessionStorage.clear();
-        window.location.href = '/login.html';
+        // Redirect to root which serves login.html
+        window.location.href = '/';
     }
 }

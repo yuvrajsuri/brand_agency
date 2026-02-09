@@ -30,7 +30,10 @@ class R2Storage:
            self.account_id == "your_account_id_here":
             logger.warning("R2 credentials not configured - using local storage")
             self.client = None
-            self.local_storage_dir = Path.home() / "Downloads" / "brandbot-posters"
+            
+            # Use environment variable for local storage, default to Docker-friendly path or Downloads
+            default_path = Path("/app/data/posters") if os.getenv("DOCKER_ENV") else Path.home() / "Downloads" / "brandbot-posters"
+            self.local_storage_dir = Path(os.getenv("LOCAL_STORAGE_DIR", default_path))
             self.local_storage_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Local storage directory: {self.local_storage_dir}")
             return
