@@ -1,28 +1,118 @@
-version: '3.8'
+version: "3.9"
 
-services:
-  overlay-engine:
-    build: .
-    container_name: text-overlay-engine
-    ports:
-      - "8000:8000"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=8000
-    env_file:
-      - .env
-    volumes:
-      - ./:/app
-      - overlay-cache:/tmp/overlay-engine
-      - ./data:/app/data
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+networks:
+  brand-agency-net:
+    driver: bridge
 
 volumes:
-  overlay-cache:
-    driver: local
+  pocketbase_data:
+  traefik_certs:
+
+services:
+
+  # ─────────────────────────────────────────────
+  # TRAEFIK — Reverse Proxy + SSL Termination
+  # ─────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/certs
+    networks:
+      - brand-agency-net
+
+  # ─────────────────────────────────────────────
+  # POCKETBASE — Database
+  # ─────────────────────────────────────────────
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: pocketbase
+    restart: unless-stopped
+    volumes:
+      - pocketbase_data:/pb_data
+    networks:
+      - brand-agency-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pocketbase.rule=Host(`${DOMAIN}`) && PathPrefix(`/pb`)
+      - traefik.http.routers.pocketbase.entrypoints=websecure
+      - traefik.http.routers.pocketbase.tls.certresolver=letsencrypt
+      - traefik.http.services.pocketbase.loadbalancer.server.port=8090
+
+  # ─────────────────────────────────────────────
+  # GATEWAY — WhatsApp Webhooks + Routing
+  # ─────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - CREATIVE_ENGINE_URL=http://creative-engine:8001
+      - RENDERER_URL=http://renderer:8002
+      - POCKETBASE_URL=http://pocketbase:8090
+    networks:
+      - brand-agency-net
+    depends_on:
+      - pocketbase
+    labels:
+      - traefik.enable=true
+      # WhatsApp webhook
+      - traefik.http.routers.gateway.rule=Host(`${DOMAIN}`) && (PathPrefix(`/webhook`) || PathPrefix(`/health`))
+      - traefik.http.routers.gateway.entrypoints=websecure
+      - traefik.http.routers.gateway.tls.certresolver=letsencrypt
+      - traefik.http.services.gateway.loadbalancer.server.port=8000
+
+  # ─────────────────────────────────────────────
+  # CREATIVE ENGINE — AI Campaign Generation
+  # ─────────────────────────────────────────────
+  creative-engine:
+    build:
+      context: ./services/creative_engine
+      dockerfile: Dockerfile
+    container_name: creative-engine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - RENDERER_URL=http://renderer:8002
+      - POCKETBASE_URL=http://pocketbase:8090
+    networks:
+      - brand-agency-net
+    depends_on:
+      - pocketbase
+      - renderer
+    # Internal only — not exposed via Traefik
+    # Gateway calls creative-engine:8001 directly on the internal network
+
+  # ─────────────────────────────────────────────
+  # RENDERER — Playwright Text Overlay Engine
+  # ─────────────────────────────────────────────
+  renderer:
+    build:
+      context: ./services/renderer
+      dockerfile: Dockerfile
+    container_name: renderer
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - brand-agency-net
+    # Internal only — called by creative-engine on renderer:8002
+    # Chromium needs extra shared memory
+    shm_size: '256m'

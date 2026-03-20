@@ -1,0 +1,13 @@
+# FastAPI and web server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+
+# HTTP client (Meta API, inter-service calls)
+httpx==0.26.0
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Task scheduling (for cron-like campaign triggers)
+apscheduler==3.10.4
